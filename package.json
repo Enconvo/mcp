@@ -1,0 +1,45 @@
+{
+  "$schema": "https://enconvo.com/schemas/extension.json",
+  "name": "mcp",
+  "version": "0.0.001",
+  "description": "MCP(Model Context Protocol)",
+  "title": "MCP(Model Context Protocol)",
+  "icon": "icon.png",
+  "author": "Enconvo",
+  "license": "MIT",
+  "type": "module",
+  "minAppVersion": "1.8.8",
+  "categories": [
+    "Productivity"
+  ],
+  "commands": [
+    {
+      "name": "api_list_servers",
+      "title": "List Servers",
+      "description": "List all servers",
+      "icon": "icon.png",
+      "mode": "no-view",
+      "parameters": {
+        "type": "object",
+        "properties": {}
+      },
+      "showInCommandList": true
+    }
+  ],
+  "devDependencies": {
+    "@enconvo/api": "link:/Users/ysnows/Documents/Project/enconvo.nodejs/enconvo_api",
+    "@types/node": "^18.19.33",
+    "eslint": "^8.57.0",
+    "prettier": "^2.8.8",
+    "tsup": "^7.2.0",
+    "typescript": "^5.4.5"
+  },
+  "scripts": {
+    "lint": "eslint src",
+    "lint:fix": "npm run lint --fix",
+    "format": "prettier --write \"**/*.ts\"",
+    "format:check": "prettier --list-different \"**/*.ts\"",
+    "build": "enconvo",
+    "dev": "enconvo --dev"
+  }
+}
