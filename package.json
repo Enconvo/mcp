@@ -14,6 +14,18 @@
   ],
   "commands": [
     {
+      "name": "mcp_tool",
+      "title": "MCP Tool",
+      "description": "MCP Tool",
+      "icon": "icon.png",
+      "mode": "no-view",
+      "parameters": {
+        "type": "object",
+        "properties": {}
+      },
+      "showInCommandList": false
+    },
+    {
       "name": "api_list_servers",
       "title": "List Servers",
       "description": "List all servers",
@@ -26,8 +38,10 @@
       "showInCommandList": true
     }
   ],
+  "dependencies": {
+    "@enconvo/api": "link:/Users/ysnows/Documents/Project/enconvo.nodejs/enconvo_api"
+  },
   "devDependencies": {
-    "@enconvo/api": "link:/Users/ysnows/Documents/Project/enconvo.nodejs/enconvo_api",
     "@types/node": "^18.19.33",
     "eslint": "^8.57.0",
     "prettier": "^2.8.8",

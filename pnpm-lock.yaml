@@ -7,10 +7,11 @@ settings:
 importers:
 
   .:
-    devDependencies:
+    dependencies:
       '@enconvo/api':
         specifier: link:/Users/ysnows/Documents/Project/enconvo.nodejs/enconvo_api
         version: link:../../enconvo.nodejs/enconvo_api
+    devDependencies:
       '@types/node':
         specifier: ^18.19.33
         version: 18.19.33
