@@ -1,7 +1,7 @@
 {
   "$schema": "https://enconvo.com/schemas/extension.json",
   "name": "mcp",
-  "version": "0.0.001",
+  "version": "0.0.100",
   "description": "MCP(Model Context Protocol)",
   "title": "MCP(Model Context Protocol)",
   "icon": "icon.png",
@@ -16,8 +16,9 @@
     {
       "name": "mcp_tool",
       "title": "MCP Tool",
-      "description": "MCP Tool",
+      "description": "Run MCP Tool",
       "icon": "icon.png",
+      "commandType": "function_command",
       "mode": "no-view",
       "parameters": {
         "type": "object",
@@ -31,11 +32,12 @@
       "description": "List all servers",
       "icon": "icon.png",
       "mode": "no-view",
+      "commandType": "api",
       "parameters": {
         "type": "object",
         "properties": {}
       },
-      "showInCommandList": true
+      "showInCommandList": false
     }
   ],
   "dependencies": {
