@@ -131,8 +131,8 @@ export class SimpleOAuthClientProvider implements OAuthClientProvider {
   }
 
   /**
- * Opens the authorization URL in the user's default browser
- */
+   * Opens the authorization URL in the user's default browser
+   */
   private async openBrowser(url: string): Promise<void> {
     console.log(`🌐 Opening browser for authorization: ${url}`);
 

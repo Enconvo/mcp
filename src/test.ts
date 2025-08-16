@@ -12,7 +12,7 @@ export default async function main(req: Request): Promise<EnconvoResponse> {
   const callbackPort = 54575;
 
   try {
-    console.log('🚀 开始OAuth流程...');
+    console.log('🚀 Starting OAuth flow...');
     const oauthFlow = new OAuthFlowManager(mcpServerUrl, callbackPort, `${options.extensionName}|${options.commandName}`);
 
     const toolsResult = await oauthFlow.executeOAuthFlow();
@@ -21,22 +21,22 @@ export default async function main(req: Request): Promise<EnconvoResponse> {
       status: 200,
       body: JSON.stringify({
         success: true,
-        message: "OAuth认证成功，已连接到MCP服务器",
+        message: "OAuth authentication successful, connected to MCP server",
         timestamp: new Date().toISOString(),
         tools: toolsResult
       }, null, 2),
     };
 
   } catch (error) {
-    console.error('❌ OAuth流程失败:', error);
+    console.error('❌ OAuth flow failed:', error);
 
     if (error instanceof UnauthorizedError) {
       return {
         status: 401,
         body: JSON.stringify({
           success: false,
-          error: "OAuth授权失败",
-          message: "请完成OAuth授权流程以访问MCP工具",
+          error: "OAuth authorization failed",
+          message: "Please complete the OAuth authorization flow to access MCP tools",
           timestamp: new Date().toISOString()
         }),
       };
@@ -46,7 +46,7 @@ export default async function main(req: Request): Promise<EnconvoResponse> {
       status: 500,
       body: JSON.stringify({
         success: false,
-        error: "连接MCP服务器失败",
+        error: "Failed to connect to MCP server",
         message: error instanceof Error ? error.message : String(error),
         timestamp: new Date().toISOString()
       }),

@@ -1,7 +1,7 @@
 import * as net from "net";
 
 /**
- * 更高效的端口检查方法 - 使用 net.connect 而不是创建服务器
+ * More efficient port checking method - uses net.connect instead of creating servers
  */
 export async function isPortAvailable(port: number): Promise<boolean> {
   return new Promise((resolve) => {
@@ -9,18 +9,18 @@ export async function isPortAvailable(port: number): Promise<boolean> {
     
     const timeout = setTimeout(() => {
       socket.destroy();
-      resolve(true); // 连接超时，认为端口可用
+      resolve(true); // Connection timeout, consider port available
     }, 100);
     
     socket.on('connect', () => {
       clearTimeout(timeout);
       socket.destroy();
-      resolve(false); // 能连接，说明端口被占用
+      resolve(false); // Can connect, port is in use
     });
     
     socket.on('error', () => {
       clearTimeout(timeout);
-      resolve(true); // 连接失败，端口可用
+      resolve(true); // Connection failed, port available
     });
     
     socket.connect(port, 'localhost');
@@ -29,7 +29,7 @@ export async function isPortAvailable(port: number): Promise<boolean> {
 
 
 /**
- * 查找可用端口，从指定端口开始递增查找（仅检查，不创建服务器）
+ * Find available port, incrementally searching from specified port (check only, no server creation)
  */
 export async function findAvailablePort(startPort: number, maxAttempts: number = 100): Promise<number> {
   for (let port = startPort; port < startPort + maxAttempts; port++) {
@@ -37,5 +37,5 @@ export async function findAvailablePort(startPort: number, maxAttempts: number =
       return port;
     }
   }
-  throw new Error(`无法找到可用端口，已尝试从 ${startPort} 到 ${startPort + maxAttempts - 1}`);
+  throw new Error(`Unable to find available port, tried from ${startPort} to ${startPort + maxAttempts - 1}`);
 }
