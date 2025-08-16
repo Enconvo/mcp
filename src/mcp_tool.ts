@@ -13,6 +13,7 @@ import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js"
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import { Transport } from "@modelcontextprotocol/sdk/shared/transport.js";
 import { SSEClientTransport } from "@modelcontextprotocol/sdk/client/sse.js";
+import { OAuthTransportFactory, OAuthConfig } from "./oauth-http-transport.js";
 
 interface ClientEntry {
   client: Client;
@@ -22,8 +23,15 @@ interface ClientEntry {
 
 let clients: Record<string, ClientEntry> = {};
 const IDLE_TIMEOUT_MS = 3 * 60 * 1000; // 5 minutes
+let oauthFactory: OAuthTransportFactory | null = null;
 
 export default async function main(req: Request): Promise<EnconvoResponse> {
+  // Initialize OAuth factory if not already done
+  if (!oauthFactory) {
+    oauthFactory = new OAuthTransportFactory();
+    await oauthFactory.initialize();
+  }
+
   let options: RequestOptions = await req.json();
   const { commandName, extensionName, parameters } = options;
   // console.log("mcp_tool params", JSON.stringify(options, null, 2))
@@ -55,18 +63,18 @@ export default async function main(req: Request): Promise<EnconvoResponse> {
     ) {
       env = options.mcp_headers
         ? Object.fromEntries(
-            options.mcp_headers
-              ?.split("\n")
-              ?.map((item: string) => item.split("=")) || []
-          )
+          options.mcp_headers
+            ?.split("\n")
+            ?.map((item: string) => item.split("=")) || []
+        )
         : manifestInfo.server.mcp_config?.env;
     } else {
       env = options.mcp_env
         ? Object.fromEntries(
-            options.mcp_env
-              ?.split("\n")
-              ?.map((item: string) => item.split("=")) || []
-          )
+          options.mcp_env
+            ?.split("\n")
+            ?.map((item: string) => item.split("=")) || []
+        )
         : manifestInfo.server.mcp_config?.env;
     }
     manifestInfo.server.mcp_config = {
@@ -77,13 +85,14 @@ export default async function main(req: Request): Promise<EnconvoResponse> {
     };
   }
 
-  let userConfig = manifestInfo.user_config
+  const manifestAny = manifestInfo as any;
+  let userConfig = manifestAny.user_config
     ? Object.fromEntries(
-        Object.entries(manifestInfo.user_config)
-          .filter(([key]) => key in options)
-          .map(([key]) => [key, options[key]])
-          .sort((a, b) => a[0].localeCompare(b[0]))
-      )
+      Object.entries(manifestAny.user_config)
+        .filter(([key]) => key in options)
+        .map(([key]) => [key, options[key]])
+        .sort((a, b) => a[0].localeCompare(b[0]))
+    )
     : {};
 
   if (options.credentials) {
@@ -103,7 +112,7 @@ export default async function main(req: Request): Promise<EnconvoResponse> {
     extensionName: extensionName,
   };
   const serverKey = JSON.stringify(keyObject);
-  console.log("serverKey", serverKey);
+  // console.log("serverKey", keyObject);
 
   let clientEntry = clients[serverKey];
   if (!clientEntry) {
@@ -195,7 +204,7 @@ async function createNewClient(
 ) {
   const mcp = new Client({
     name: extensionName,
-    version: manifestInfo.version || "0.0.1",
+    version: (manifestInfo as any).version || "0.0.1",
   });
   const args = [];
   const __dirname = extensionPath;
@@ -236,11 +245,26 @@ async function createNewClient(
       }
     }
 
-    transport = new StreamableHTTPClientTransport(new URL(result2), {
-      requestInit: {
-        headers: envs,
-      },
-    });
+    // Check for OAuth configuration
+    const serverAny = manifestInfo.server as any;
+    const oauthConfig: OAuthConfig | undefined = serverAny?.oauth_config ? {
+      enabled: serverAny.oauth_config.enabled !== false,
+      client_id: serverAny.oauth_config.client_id || userConfig.oauth_client_id,
+      client_secret: serverAny.oauth_config.client_secret || userConfig.oauth_client_secret,
+      redirect_uri: serverAny.oauth_config.redirect_uri || 'http://localhost:8080/callback',
+      scope: serverAny.oauth_config.scope,
+      auto_register: serverAny.oauth_config.auto_register !== false,
+    } : undefined;
+
+    if (oauthConfig?.enabled && oauthFactory) {
+      transport = await oauthFactory.createHttpTransport(new URL(result2), envs, oauthConfig);
+    } else {
+      transport = new StreamableHTTPClientTransport(new URL(result2), {
+        requestInit: {
+          headers: envs,
+        },
+      });
+    }
   } else if (manifestInfo.server?.type === "sse") {
     const result = runInNewContext(`\`${manifestInfo.server.entry_point}\``, {
       __dirname,
@@ -275,11 +299,26 @@ async function createNewClient(
       }
     }
 
-    transport = new SSEClientTransport(new URL(result2), {
-      requestInit: {
-        headers: envs,
-      },
-    });
+    // Check for OAuth configuration
+    const serverAny = manifestInfo.server as any;
+    const oauthConfig: OAuthConfig | undefined = serverAny?.oauth_config ? {
+      enabled: serverAny.oauth_config.enabled !== false,
+      client_id: serverAny.oauth_config.client_id || userConfig.oauth_client_id,
+      client_secret: serverAny.oauth_config.client_secret || userConfig.oauth_client_secret,
+      redirect_uri: serverAny.oauth_config.redirect_uri || 'http://localhost:8080/callback',
+      scope: serverAny.oauth_config.scope,
+      auto_register: serverAny.oauth_config.auto_register !== false,
+    } : undefined;
+
+    if (oauthConfig?.enabled && oauthFactory) {
+      transport = await oauthFactory.createSSETransport(new URL(result2), envs, oauthConfig);
+    } else {
+      transport = new SSEClientTransport(new URL(result2), {
+        requestInit: {
+          headers: envs,
+        },
+      });
+    }
   } else {
     for (const arg of manifestInfo.server?.mcp_config?.args || []) {
       const result = runInNewContext(`\`${arg}\``, {
@@ -318,6 +357,11 @@ async function createNewClient(
       }
     }
     transport = new StdioClientTransport({
+      command: manifestInfo.server?.mcp_config?.command || "",
+      args: args,
+      env: envs,
+    });
+    console.log("transport", {
       command: manifestInfo.server?.mcp_config?.command || "",
       args: args,
       env: envs,

@@ -1,0 +1,71 @@
+{
+  "$schema": "https://enconvo.com/schemas/extension.json",
+  "name": "mcp-oauth-example",
+  "version": "1.0.0",
+  "description": "Example MCP extension with OAuth authentication",
+  "title": "MCP OAuth Example",
+  "icon": "icon.png",
+  "author": "Enconvo",
+  "license": "MIT",
+  "type": "module",
+  "minAppVersion": "1.8.8",
+  "categories": ["Productivity"],
+  "commands": [
+    {
+      "name": "oauth_test_tool",
+      "title": "OAuth Test Tool",
+      "description": "Test OAuth authenticated MCP tool",
+      "icon": "icon.png",
+      "commandType": "function_command",
+      "mode": "no-view",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string",
+            "description": "Test message"
+          }
+        }
+      }
+    }
+  ],
+  "server": {
+    "type": "http",
+    "entry_point": "https://mcp-server.example.com/mcp",
+    "mcp_config": {
+      "env": {
+        "API_KEY": "${user_config.api_key}",
+        "DEBUG": "true"
+      }
+    },
+    "oauth_config": {
+      "enabled": true,
+      "client_id": "${user_config.oauth_client_id}",
+      "client_secret": "${user_config.oauth_client_secret}",
+      "redirect_uri": "http://localhost:8080/callback",
+      "scope": "read write",
+      "auto_register": true
+    }
+  },
+  "user_config": {
+    "api_key": {
+      "type": "string",
+      "title": "API Key",
+      "description": "Your API key for the service",
+      "required": false
+    },
+    "oauth_client_id": {
+      "type": "string",
+      "title": "OAuth Client ID",
+      "description": "OAuth client ID (leave empty for auto-registration)",
+      "required": false
+    },
+    "oauth_client_secret": {
+      "type": "string",
+      "title": "OAuth Client Secret",
+      "description": "OAuth client secret (for confidential clients)",
+      "required": false,
+      "secret": true
+    }
+  }
+}
