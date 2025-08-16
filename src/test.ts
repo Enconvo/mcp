@@ -28,8 +28,8 @@ export default async function main() {
         console.log(`   Code Challenge: ${codeChallenge.substring(0, 20)}...`);
 
         // Test with real MCP server
-        const mcpServerUrl = "https://api.githubcopilot.com/mcp/";
-        // const mcpServerUrl = "https://mcp.notion.com/mcp";
+        // const mcpServerUrl = "https://api.githubcopilot.com/mcp/";
+        const mcpServerUrl = "https://mcp.notion.com/mcp";
         console.log(`🔍 Testing OAuth discovery with real MCP server: ${mcpServerUrl}`);
 
         // Test protected resource metadata discovery
@@ -78,8 +78,7 @@ export default async function main() {
             console.log("   This is expected if the MCP server doesn't support OAuth authentication");
         }
 
-
-
+      
         const mcp = new Client({
             name: 'oauth-test',
             version: '0.0.1',

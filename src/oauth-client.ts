@@ -110,23 +110,191 @@ export class OAuthClient {
   }
 
   async discoverProtectedResourceMetadata(serverUrl: string): Promise<ProtectedResourceMetadata> {
-    const metadataUrl = new URL('/.well-known/oauth-protected-resource', serverUrl);
+    console.log(`🔍 Starting protected resource discovery for: ${serverUrl}`);
     
+    // Step 1: Try direct metadata discovery first
+    // According to RFC9728, servers SHOULD serve metadata at /.well-known/oauth-protected-resource
     try {
+      console.log('📡 Attempting direct metadata discovery...');
+      const metadataUrl = new URL('/.well-known/oauth-protected-resource', serverUrl);
+      console.log("Metadata URL:", metadataUrl.toString());
       const response = await fetch(metadataUrl.toString());
-      if (!response.ok) {
-        throw new Error(`Failed to fetch protected resource metadata: ${response.status}`);
-      }
       
-      const metadata = await response.json() as ProtectedResourceMetadata;
-      if (!metadata.authorization_servers || metadata.authorization_servers.length === 0) {
-        throw new Error('Protected resource metadata missing authorization_servers');
+      if (response.ok) {
+        const metadata = await response.json() as ProtectedResourceMetadata;
+        if (metadata.authorization_servers && metadata.authorization_servers.length > 0) {
+          console.log('✅ Direct metadata discovery successful');
+          return metadata;
+        } else {
+          throw new Error('Protected resource metadata missing authorization_servers');
+        }
+      } else {
+        throw new Error(`Direct discovery failed with status: ${response.status}`);
       }
-      
-      return metadata;
-    } catch (error) {
-      throw new Error(`Failed to discover protected resource metadata: ${error}`);
+    } catch (directError) {
+      console.log(`ℹ️  Direct discovery failed: ${(directError as Error).message}`);
     }
+
+    // Step 2: Attempt 401 challenge discovery
+    // According to RFC9728 Section 5.1, servers MUST use WWW-Authenticate header on 401
+    try {
+      console.log('📡 Attempting 401 challenge discovery...');
+      const response = await fetch(serverUrl, {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json'
+        }
+      });
+
+      console.log(`📋 Response status: ${response.status}`);
+      
+      if (response.status === 401) {
+        const wwwAuth = response.headers.get('www-authenticate');
+        console.log(`🔍 WWW-Authenticate header: ${wwwAuth}`);
+        
+        if (wwwAuth) {
+          const metadataUrl = this.extractMetadataUrlFromWwwAuth(wwwAuth);
+          if (metadataUrl) {
+            console.log("Metadata URL 2:", metadataUrl);
+            console.log(`📡 Found metadata URL in WWW-Authenticate: ${metadataUrl}`);
+            
+            try {
+              const metadataResponse = await fetch(metadataUrl);
+              if (metadataResponse.ok) {
+                const metadata = await metadataResponse.json() as ProtectedResourceMetadata;
+                if (metadata.authorization_servers && metadata.authorization_servers.length > 0) {
+                  console.log('✅ Metadata retrieved from WWW-Authenticate URL');
+                  return metadata;
+                } else {
+                  throw new Error('Metadata missing authorization_servers');
+                }
+              } else {
+                console.warn(`❌ Failed to fetch metadata from ${metadataUrl}: ${metadataResponse.status}`);
+              }
+            } catch (metadataFetchError) {
+              console.warn(`❌ Error fetching metadata from ${metadataUrl}:`, metadataFetchError);
+            }
+          } else {
+            console.log('ℹ️  No resource_metadata found in WWW-Authenticate header');
+            
+            // Parse other parameters for debugging
+            const authParams = this.parseWwwAuthParams(wwwAuth);
+            console.log('🔍 Parsed WWW-Authenticate parameters:', Object.fromEntries(authParams));
+          }
+        } else {
+          console.log('ℹ️  No WWW-Authenticate header in 401 response');
+        }
+      } else {
+        console.log(`ℹ️  Server responded with ${response.status}, not 401. May not require authentication.`);
+      }
+    } catch (fetchError) {
+      console.warn('❌ Failed to perform 401 challenge discovery:', fetchError);
+    }
+
+    // Step 3: Try common metadata paths as fallback
+    const baseUrl = new URL(serverUrl);
+    const pathSegments = baseUrl.pathname.split('/').filter(segment => segment.length > 0);
+    
+    const metadataPaths = [
+      '/.well-known/oauth-protected-resource',
+      '/.well-known/oauth-protected-resource/',
+    ];
+    
+    // Add path-specific metadata URLs (like GitHub Copilot example)
+    if (pathSegments.length > 0) {
+      const resourcePath = pathSegments.join('/');
+      metadataPaths.push(`/.well-known/oauth-protected-resource/${resourcePath}`);
+      metadataPaths.push(`/.well-known/oauth-protected-resource/${resourcePath}/`);
+    }
+
+    for (const path of metadataPaths) {
+      try {
+        const metadataUrl = `${baseUrl.origin}${path}`;
+        console.log(`📡 Trying fallback metadata URL: ${metadataUrl}`);
+        
+        const response = await fetch(metadataUrl);
+        if (response.ok) {
+          const metadata = await response.json() as ProtectedResourceMetadata;
+          if (metadata.authorization_servers && metadata.authorization_servers.length > 0) {
+            console.log('✅ Fallback metadata discovery successful');
+            return metadata;
+          }
+        }
+      } catch (error) {
+        // Continue to next path
+      }
+    }
+    
+    throw new Error(`Failed to discover protected resource metadata for ${serverUrl}. Server may not support OAuth authentication.`);
+  }
+
+  private extractMetadataUrlFromWwwAuth(wwwAuthHeader: string): string | null {
+    // Parse WWW-Authenticate header according to RFC9728
+    // Format: Bearer realm="...", resource_metadata="...", error="...", error_description="..."
+    
+    console.log(`🔍 Parsing WWW-Authenticate header: ${wwwAuthHeader}`);
+    
+    // Handle multiple authentication schemes by splitting on comma outside quotes
+    const authChallenges = this.parseAuthChallenges(wwwAuthHeader);
+    
+    for (const challenge of authChallenges) {
+      if (challenge.scheme.toLowerCase() === 'bearer') {
+        const resourceMetadata = challenge.params.get('resource_metadata');
+        if (resourceMetadata) {
+          console.log(`✅ Found resource_metadata: ${resourceMetadata}`);
+          return resourceMetadata;
+        }
+      }
+    }
+    
+    console.log('❌ No resource_metadata found in WWW-Authenticate header');
+    return null;
+  }
+
+  private parseAuthChallenges(wwwAuthHeader: string): Array<{scheme: string, params: Map<string, string>}> {
+    const challenges: Array<{scheme: string, params: Map<string, string>}> = [];
+    
+    // Split by scheme keywords (Bearer, Basic, etc.) while preserving the structure
+    const schemeRegex = /(?:^|,\s*)([a-zA-Z][a-zA-Z0-9_+-]*)\s+(.+?)(?=(?:,\s*[a-zA-Z][a-zA-Z0-9_+-]*\s)|$)/g;
+    let match;
+    
+    while ((match = schemeRegex.exec(wwwAuthHeader)) !== null) {
+      const scheme = match[1];
+      const paramString = match[2];
+      
+      const params = this.parseWwwAuthParams(paramString);
+      challenges.push({ scheme, params });
+    }
+    
+    // Fallback: if regex parsing fails, try simple Bearer parsing
+    if (challenges.length === 0 && wwwAuthHeader.toLowerCase().startsWith('bearer')) {
+      const paramString = wwwAuthHeader.substring(6).trim(); // Remove "Bearer"
+      const params = this.parseWwwAuthParams(paramString);
+      challenges.push({ scheme: 'Bearer', params });
+    }
+    
+    return challenges;
+  }
+
+  private parseWwwAuthParams(paramString: string): Map<string, string> {
+    const params = new Map<string, string>();
+    
+    // Parse key="value" pairs, handling quoted values properly
+    const paramRegex = /([a-zA-Z][a-zA-Z0-9_-]*)\s*=\s*(?:"([^"]*)"|([^,\s]+))/g;
+    let match;
+    
+    while ((match = paramRegex.exec(paramString)) !== null) {
+      const key = match[1];
+      const quotedValue = match[2];
+      const unquotedValue = match[3];
+      const value = quotedValue !== undefined ? quotedValue : unquotedValue;
+      
+      if (value !== undefined) {
+        params.set(key, value);
+      }
+    }
+    
+    return params;
   }
 
   async registerDynamicClient(registrationEndpoint: string, clientMetadata: any): Promise<ClientCredentials> {

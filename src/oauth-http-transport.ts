@@ -166,38 +166,8 @@ export class OAuthTransportFactory {
   }
 
   private async discoverResourceMetadata(resourceUrl: string): Promise<ProtectedResourceMetadata> {
-    try {
-      // First try to get metadata directly
-      return await this.oauthClient.discoverProtectedResourceMetadata(resourceUrl);
-    } catch (error) {
-      // If direct discovery fails, try making a request to trigger 401
-      try {
-        const response = await fetch(resourceUrl);
-        if (response.status === 401) {
-          const wwwAuth = response.headers.get('www-authenticate');
-          if (wwwAuth) {
-            const metadataUrl = this.extractMetadataUrlFromWwwAuth(wwwAuth);
-            if (metadataUrl) {
-              const metadataResponse = await fetch(metadataUrl);
-              if (metadataResponse.ok) {
-                return await metadataResponse.json();
-              }
-            }
-          }
-        }
-      } catch (fetchError) {
-        console.warn('Failed to trigger 401 discovery:', fetchError);
-      }
-      
-      throw new Error(`Failed to discover protected resource metadata for ${resourceUrl}`);
-    }
-  }
-
-  private extractMetadataUrlFromWwwAuth(wwwAuthHeader: string): string | null {
-    // Parse WWW-Authenticate header to extract metadata URL
-    // Example: Bearer realm="https://example.com", resource_metadata="https://example.com/.well-known/oauth-protected-resource"
-    const metadataMatch = wwwAuthHeader.match(/resource_metadata="([^"]+)"/);
-    return metadataMatch ? metadataMatch[1] : null;
+    // Use the enhanced discovery method from OAuthClient
+    return await this.oauthClient.discoverProtectedResourceMetadata(resourceUrl);
   }
 
   private async performAuthorizationFlow(
