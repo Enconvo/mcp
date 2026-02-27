@@ -1,7 +1,7 @@
 {
   "$schema": "https://enconvo.com/schemas/extension.json",
   "name": "mcp",
-  "version": "0.0.133",
+  "version": "0.0.199",
   "description": "MCP(Model Context Protocol)",
   "title": "MCP(Model Context Protocol)",
   "icon": "icon.png",
@@ -24,19 +24,8 @@
         "type": "object",
         "properties": {}
       },
-      "showInCommandList": false
-    },
-    {
-      "name": "test",
-      "title": "MCP Test",
-      "description": "Run MCP Test",
-      "icon": "icon.png",
-      "mode": "no-view",
-      "parameters": {
-        "type": "object",
-        "properties": {}
-      },
-      "preferences":[
+      "showInCommandList": false,
+      "preferences": [
         {
           "name": "scope",
           "description": "scope",
@@ -50,6 +39,14 @@
           "description": "access_token",
           "type": "password",
           "title": "Access Token",
+          "default": "",
+          "visibility": "hidden"
+        },
+        {
+          "name": "oauth_client_information",
+          "description": "oauth_client_information",
+          "type": "password",
+          "title": "OAuth Client Information",
           "default": "",
           "visibility": "hidden"
         },
@@ -95,7 +92,8 @@
   ],
   "dependencies": {
     "@enconvo/api": "link:/Users/ysnows/Documents/Project/enconvo.nodejs/enconvo_api",
-    "@modelcontextprotocol/sdk": "^1.17.0"
+    "@enconvo/mcp": "link:/Users/ysnows/Documents/Project/packages/@enconvo:mcp",
+    "@modelcontextprotocol/sdk": "^1.27.1"
   },
   "devDependencies": {
     "@types/node": "^18.19.33",

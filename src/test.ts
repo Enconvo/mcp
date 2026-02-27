@@ -1,19 +1,20 @@
 import { EnconvoResponse, RequestOptions } from "@enconvo/api";
+import { OAuthFlowManager } from "@enconvo/mcp";
 import {
   UnauthorizedError
 } from "@modelcontextprotocol/sdk/client/auth.js";
-import { OAuthFlowManager } from "./utils/oauth_flow_manager.js";
 
 
 
 export default async function main(req: Request): Promise<EnconvoResponse> {
   const options: RequestOptions = await req.json();
+  // const mcpServerUrl = "https://server.smithery.ai/@nickclyde/duckduckgo-mcp-server/mcp";
+  // const mcpServerUrl = "https://api.githubcopilot.com/mcp/";
   const mcpServerUrl = "https://mcp.notion.com/mcp";
-  const callbackPort = 54575;
 
   try {
     console.log('🚀 Starting OAuth flow...');
-    const oauthFlow = new OAuthFlowManager(mcpServerUrl, callbackPort, `${options.extensionName}|${options.commandName}`);
+    const oauthFlow = new OAuthFlowManager(mcpServerUrl, `${options.extensionName}`);
 
     const toolsResult = await oauthFlow.executeOAuthFlow();
 

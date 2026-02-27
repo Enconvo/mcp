@@ -4,15 +4,20 @@ import {
   DxtManifest,
   Extension,
   ChatMessageContent,
+  getProjectEnv,
 } from "@enconvo/api";
 import { runInNewContext } from "vm";
 import fs from "fs";
 import path from "path";
+import os from "os";
+import crypto from "crypto";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import { Transport } from "@modelcontextprotocol/sdk/shared/transport.js";
 import { SSEClientTransport } from "@modelcontextprotocol/sdk/client/sse.js";
+import { UnauthorizedError } from "@modelcontextprotocol/sdk/client/auth.js";
+import { OAuthFlowManager, SimpleOAuthClientProvider } from "@enconvo/mcp";
 
 interface ClientEntry {
   client: Client;
@@ -23,16 +28,24 @@ interface ClientEntry {
 let clients: Record<string, ClientEntry> = {};
 const IDLE_TIMEOUT_MS = 3 * 60 * 1000; // 5 minutes
 
+interface MCPRequestOptions extends RequestOptions {
+  mcpOptions?: RequestOptions & {
+    mcp_args?: string
+  }
+}
+
 export default async function main(req: Request): Promise<EnconvoResponse> {
-  let options: RequestOptions = await req.json();
-  const { commandName, extensionName, parameters } = options;
-  // console.log("mcp_tool params", JSON.stringify(options, null, 2))
+  const options: MCPRequestOptions = await req.json();
+  const mcpOptions = options.mcpOptions || options
+
+  const { commandName, extensionName, parameters } = mcpOptions;
+  console.log("mcp_tool params", options.commandName, JSON.stringify(mcpOptions, null, 2))
   if (!extensionName || !commandName) {
     return EnconvoResponse.error("extensionName and commandName is required");
   }
   const params = Object.keys(parameters.properties).reduce(
     (acc: any, key: string) => {
-      acc[key] = options[key];
+      acc[key] = mcpOptions[key];
       return acc;
     },
     {} as any
@@ -47,49 +60,49 @@ export default async function main(req: Request): Promise<EnconvoResponse> {
   // console.log("manifestInfo", manifestInfo, options.mcp_headers)
   if (manifestInfo.server) {
     manifestInfo.server.entry_point =
-      options.mcp_entry_point || manifestInfo.server.entry_point;
+      mcpOptions.mcp_entry_point || manifestInfo.server.entry_point;
     let env;
     if (
       manifestInfo.server.type === "http" ||
       manifestInfo.server.type === "sse"
     ) {
-      env = options.mcp_headers
+      env = mcpOptions.mcp_headers
         ? Object.fromEntries(
-            options.mcp_headers
-              ?.split("\n")
-              ?.map((item: string) => item.split("=")) || []
-          )
+          mcpOptions.mcp_headers
+            ?.split("\n")
+            ?.map((item: string) => item.split("=")) || []
+        )
         : manifestInfo.server.mcp_config?.env;
     } else {
-      env = options.mcp_env
+      env = mcpOptions.mcp_env
         ? Object.fromEntries(
-            options.mcp_env
-              ?.split("\n")
-              ?.map((item: string) => item.split("=")) || []
-          )
+          mcpOptions.mcp_env
+            ?.split("\n")
+            ?.map((item: string) => item.split("=")) || []
+        )
         : manifestInfo.server.mcp_config?.env;
     }
     manifestInfo.server.mcp_config = {
-      command: options.mcp_command || manifestInfo.server.mcp_config?.command,
+      command: mcpOptions.mcp_command || manifestInfo.server.mcp_config?.command,
       args:
-        options.mcp_args?.split("\n") || manifestInfo.server.mcp_config?.args,
+        mcpOptions.mcp_args?.split("\n") || manifestInfo.server.mcp_config?.args,
       env: env,
     };
   }
 
   let userConfig = manifestInfo.user_config
     ? Object.fromEntries(
-        Object.entries(manifestInfo.user_config)
-          .filter(([key]) => key in options)
-          .map(([key]) => [key, options[key]])
-          .sort((a, b) => a[0].localeCompare(b[0]))
-      )
+      Object.entries(manifestInfo.user_config)
+        .filter(([key]) => key in mcpOptions)
+        .map(([key]) => [key, mcpOptions[key]])
+        .sort((a, b) => a[0].localeCompare(b[0]))
+    )
     : {};
 
-  if (options.credentials) {
+  if (mcpOptions.credentials) {
     userConfig = {
       ...userConfig,
-      ...options.credentials,
+      ...mcpOptions.credentials,
     };
   }
 
@@ -103,9 +116,10 @@ export default async function main(req: Request): Promise<EnconvoResponse> {
     extensionName: extensionName,
   };
   const serverKey = JSON.stringify(keyObject);
-  console.log("serverKey", serverKey);
+  // console.log("serverKey", serverKey);
 
   let clientEntry = clients[serverKey];
+  // console.log("client ", clientEntry === undefined)
   if (!clientEntry) {
     const mcp = await createNewClient(
       manifestInfo,
@@ -135,9 +149,67 @@ export default async function main(req: Request): Promise<EnconvoResponse> {
     arguments: params,
   });
 
-  // console.log("toolResult", toolResult)
+  let workdir = getProjectEnv()
+  console.log("workdir", workdir, options.agentRealCommandName, mcpOptions.filename)
+  if (!workdir.endsWith(options.agentRealCommandName)) {
+    workdir = path.join(workdir, options.agentRealCommandName)
+  }
 
-  return EnconvoResponse.content(toolResult.content as ChatMessageContent[]);
+
+  const content: ChatMessageContent[] = (toolResult.content as any[])?.map((item: any) => {
+    switch (item.type) {
+      case "text":
+        return { type: "text", text: item.text } as ChatMessageContent;
+      case "image":
+        return { type: "image_url", image_url: { url: saveBase64ToFile(item.data, item.mimeType, workdir, mcpOptions.filename) } } as ChatMessageContent;
+      case "audio":
+        return { type: "audio", file_url: { url: saveBase64ToFile(item.data, item.mimeType, workdir, mcpOptions.filename) } } as ChatMessageContent;
+      case "resource_link":
+        return { type: "text", text: `[${item.name}](${item.uri})${item.description ? ` - ${item.description}` : ""}` } as ChatMessageContent;
+      case "resource":
+        if (item.resource?.text) {
+          return { type: "text", text: item.resource.text } as ChatMessageContent;
+        } else if (item.resource?.blob) {
+          const mimeType = item.resource.mimeType || "application/octet-stream";
+          if (mimeType.startsWith("image/")) {
+            return { type: "image_url", image_url: { url: saveBase64ToFile(item.resource.blob, mimeType, workdir, mcpOptions.filename) } } as ChatMessageContent;
+          } else if (mimeType.startsWith("audio/")) {
+            return { type: "audio", file_url: { url: saveBase64ToFile(item.resource.blob, mimeType, workdir, mcpOptions.filename) } } as ChatMessageContent;
+          }
+          return { type: "text", text: item.resource.blob } as ChatMessageContent;
+        }
+        return { type: "text", text: JSON.stringify(item) } as ChatMessageContent;
+      default:
+        return { type: "text", text: JSON.stringify(item) } as ChatMessageContent;
+    }
+  }) || [{ type: "text", text: JSON.stringify(toolResult) }];
+
+  return EnconvoResponse.content(content, toolResult.isError as boolean | undefined);
+}
+
+const MIME_TO_EXT: Record<string, string> = {
+  "image/png": ".png",
+  "image/jpeg": ".jpg",
+  "image/gif": ".gif",
+  "image/webp": ".webp",
+  "image/svg+xml": ".svg",
+  "audio/wav": ".wav",
+  "audio/mpeg": ".mp3",
+  "audio/ogg": ".ogg",
+  "audio/webm": ".webm",
+  "audio/mp4": ".m4a",
+};
+
+function saveBase64ToFile(base64Data: string, mimeType: string, rootDir: string, filename?: string): string {
+  const ext = MIME_TO_EXT[mimeType] || `.${mimeType.split("/")[1] || "bin"}`;
+  const fileName = filename || `mcp_${crypto.randomUUID()}${ext}`;
+  const dir = rootDir || os.tmpdir();
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
+  }
+  const filePath = path.join(dir, fileName);
+  fs.writeFileSync(filePath, new Uint8Array(Buffer.from(base64Data, "base64")));
+  return filePath;
 }
 
 function scheduleClientCleanup(serverKey: string, clientEntry: ClientEntry) {
@@ -186,6 +258,9 @@ process.on("SIGTERM", () => {
   process.exit(0);
 });
 
+
+let oauthProvider: SimpleOAuthClientProvider | null = null;
+
 async function createNewClient(
   manifestInfo: DxtManifest,
   extensionName: string,
@@ -197,7 +272,7 @@ async function createNewClient(
     name: extensionName,
     version: manifestInfo.version || "0.0.1",
   });
-  const args = [];
+  const args: string[] = [];
   const __dirname = extensionPath;
 
   let transport: Transport;
@@ -213,7 +288,7 @@ async function createNewClient(
       HOME: process.env.HOME,
       user_config: userConfig,
     });
-    console.log("result2", manifestInfo.server.entry_point, result2);
+    console.log("result http", manifestInfo.server.entry_point, result2);
 
     let envs: Record<string, string> = {};
     if (manifestInfo.server?.mcp_config?.env) {
@@ -236,10 +311,13 @@ async function createNewClient(
       }
     }
 
+    oauthProvider = await OAuthFlowManager.createOAuthProvider(extensionName);
+
     transport = new StreamableHTTPClientTransport(new URL(result2), {
       requestInit: {
         headers: envs,
       },
+      authProvider: oauthProvider
     });
   } else if (manifestInfo.server?.type === "sse") {
     const result = runInNewContext(`\`${manifestInfo.server.entry_point}\``, {
@@ -253,7 +331,7 @@ async function createNewClient(
       HOME: process.env.HOME,
       user_config: userConfig,
     });
-    console.log("result2", manifestInfo.server.entry_point, result2);
+    console.log("result sse", manifestInfo.server.entry_point, result2);
 
     let envs: Record<string, string> = {};
     if (manifestInfo.server?.mcp_config?.env) {
@@ -274,11 +352,15 @@ async function createNewClient(
         envs[key] = result2;
       }
     }
+    console.log("oauthProvider", extensionName, envs);
+
+    oauthProvider = await OAuthFlowManager.createOAuthProvider(extensionName);
 
     transport = new SSEClientTransport(new URL(result2), {
       requestInit: {
         headers: envs,
       },
+      authProvider: oauthProvider
     });
   } else {
     for (const arg of manifestInfo.server?.mcp_config?.args || []) {
@@ -293,7 +375,7 @@ async function createNewClient(
         HOME: process.env.HOME,
         user_config: userConfig,
       });
-      console.log("result2", arg, result2);
+      console.log("result3", arg, result2);
       args.push(result2);
     }
 
@@ -317,15 +399,34 @@ async function createNewClient(
         envs[key] = result2;
       }
     }
+    console.log("stdio transport", manifestInfo.server?.mcp_config?.command, args, envs, extensionPath);
+
     transport = new StdioClientTransport({
       command: manifestInfo.server?.mcp_config?.command || "",
       args: args,
       env: envs,
+      cwd: extensionPath
     });
   }
 
   console.time("mcp.connect");
-  await mcp.connect(transport);
+  try {
+    await mcp.connect(transport);
+  } catch (error) {
+    if (error instanceof UnauthorizedError && transport instanceof StreamableHTTPClientTransport) {
+      console.log('🔐 OAuth authorization required - waiting for user authorization...');
+      const actualCallbackPort = OAuthFlowManager.getCallbackPort(oauthProvider?.redirectUrl as string);
+      console.log('🔐 actualCallbackPort', actualCallbackPort);
+      const authCode = await OAuthFlowManager.waitForOAuthCallback(extensionName, actualCallbackPort);
+      console.log('🔐 Authorization code received, completing auth flow...');
+      await transport.finishAuth(authCode);
+      console.log('🔌 Reconnecting with authenticated transport...');
+      return createNewClient(manifestInfo, extensionName, extensionPath, userConfig, serverKey);
+    } else {
+      console.error('❌ Connection failed (non-auth error):', error);
+      throw error;
+    }
+  }
   console.timeEnd("mcp.connect");
   mcp.onclose = () => {
     const entry = clients[serverKey];

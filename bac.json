@@ -1,0 +1,61 @@
+    {
+      "name": "test",
+      "title": "MCP Test",
+      "description": "Run MCP Test",
+      "icon": "icon.png",
+      "mode": "no-view",
+      "parameters": {
+        "type": "object",
+        "properties": {}
+      },
+      "preferences": [
+        {
+          "name": "oauth_client_information",
+          "description": "oauth_client_information",
+          "type": "password",
+          "title": "OAuth Client Information",
+          "default": "",
+          "visibility": "hidden"
+        },
+        {
+          "name": "scope",
+          "description": "scope",
+          "type": "array",
+          "title": "Scope",
+          "default": [],
+          "visibility": "hidden"
+        },
+        {
+          "name": "access_token",
+          "description": "access_token",
+          "type": "password",
+          "title": "Access Token",
+          "default": "",
+          "visibility": "hidden"
+        },
+        {
+          "name": "refresh_token",
+          "description": "refresh_token",
+          "type": "password",
+          "title": "Refresh Token",
+          "default": "",
+          "visibility": "hidden"
+        },
+        {
+          "name": "expiry_date",
+          "description": "expiry_date",
+          "type": "number",
+          "title": "Expiry Date",
+          "default": 0,
+          "visibility": "hidden"
+        },
+        {
+          "name": "token_type",
+          "description": "token_type",
+          "type": "textfield",
+          "title": "Token Type",
+          "default": "",
+          "visibility": "hidden"
+        }
+      ]
+    }
