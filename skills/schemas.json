@@ -1,0 +1,22 @@
+[
+  {
+    "name": "mcp_tool",
+    "title": "MCP Tool",
+    "description": "Run MCP Tool",
+    "route": "mcp/mcp_tool",
+    "parameters": {
+      "type": "object",
+      "properties": {}
+    }
+  },
+  {
+    "name": "api_list_servers",
+    "title": "List Servers",
+    "description": "List all servers",
+    "route": "mcp/api_list_servers",
+    "parameters": {
+      "type": "object",
+      "properties": {}
+    }
+  }
+]

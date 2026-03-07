@@ -1,7 +1,7 @@
 {
   "$schema": "https://enconvo.com/schemas/extension.json",
   "name": "mcp",
-  "version": "0.0.199",
+  "version": "0.0.207",
   "description": "MCP(Model Context Protocol)",
   "title": "MCP(Model Context Protocol)",
   "icon": "icon.png",

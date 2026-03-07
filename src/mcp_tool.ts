@@ -149,7 +149,7 @@ export default async function main(req: Request): Promise<EnconvoResponse> {
     arguments: params,
   });
 
-  let workdir = getProjectEnv()
+  let workdir = await getProjectEnv()
   console.log("workdir", workdir, options.agentRealCommandName, mcpOptions.filename)
   if (!workdir.endsWith(options.agentRealCommandName)) {
     workdir = path.join(workdir, options.agentRealCommandName)
