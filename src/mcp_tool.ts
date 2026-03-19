@@ -311,7 +311,7 @@ async function createNewClient(
       }
     }
 
-    oauthProvider = await OAuthFlowManager.createOAuthProvider(extensionName);
+    oauthProvider = await OAuthFlowManager.createOCredentialsProvider(extensionName);
 
     transport = new StreamableHTTPClientTransport(new URL(result2), {
       requestInit: {
@@ -354,7 +354,7 @@ async function createNewClient(
     }
     console.log("oauthProvider", extensionName, envs);
 
-    oauthProvider = await OAuthFlowManager.createOAuthProvider(extensionName);
+    oauthProvider = await OAuthFlowManager.createOCredentialsProvider(extensionName);
 
     transport = new SSEClientTransport(new URL(result2), {
       requestInit: {

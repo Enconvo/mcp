@@ -1,8 +1,8 @@
 {
   "$schema": "https://enconvo.com/schemas/extension.json",
   "name": "mcp",
-  "version": "0.0.207",
-  "description": "MCP(Model Context Protocol)",
+  "version": "0.0.219",
+  "description": "Model Context Protocol (MCP) client with connection pooling, supporting stdio, HTTP, and SSE transports with OAuth authentication for executing MCP server tools.",
   "title": "MCP(Model Context Protocol)",
   "icon": "icon.png",
   "author": "Enconvo",
@@ -20,6 +20,7 @@
       "icon": "icon.png",
       "commandType": "function_command",
       "mode": "no-view",
+      "private": true,
       "parameters": {
         "type": "object",
         "properties": {}
@@ -83,6 +84,7 @@
       "icon": "icon.png",
       "mode": "no-view",
       "commandType": "api",
+      "private": true,
       "parameters": {
         "type": "object",
         "properties": {}
@@ -91,7 +93,7 @@
     }
   ],
   "dependencies": {
-    "@enconvo/api": "link:/Users/ysnows/Documents/Project/enconvo.nodejs/enconvo_api",
+    "@enconvo/api": "link:../../enconvo.nodejs/enconvo_api",
     "@enconvo/mcp": "link:/Users/ysnows/Documents/Project/packages/@enconvo:mcp",
     "@modelcontextprotocol/sdk": "^1.27.1"
   },
@@ -107,7 +109,7 @@
     "lint:fix": "npm run lint --fix",
     "format": "prettier --write \"**/*.ts\"",
     "format:check": "prettier --list-different \"**/*.ts\"",
-    "build": "enconvo",
-    "dev": "enconvo --dev"
+    "build": "enconvo dev",
+    "dev": "enconvo dev --dev"
   }
 }

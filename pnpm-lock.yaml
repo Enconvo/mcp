@@ -9,7 +9,7 @@ importers:
   .:
     dependencies:
       '@enconvo/api':
-        specifier: link:/Users/ysnows/Documents/Project/enconvo.nodejs/enconvo_api
+        specifier: link:../../enconvo.nodejs/enconvo_api
         version: link:../../enconvo.nodejs/enconvo_api
       '@enconvo/mcp':
         specifier: link:/Users/ysnows/Documents/Project/packages/@enconvo:mcp
