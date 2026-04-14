@@ -41,6 +41,14 @@ npm run format
 npm run format:check
 ```
 
+### Testing API Endpoints
+
+After building, test API endpoints via the local HTTP API (port 54535):
+```bash
+curl -X POST http://localhost:54535/api/mcp/{endpoint} \
+    -H "Content-Type: application/json" -d '{}'
+```
+
 ## Configuration
 
 The extension uses a manifest-driven configuration system:
