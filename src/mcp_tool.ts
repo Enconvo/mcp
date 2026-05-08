@@ -150,11 +150,6 @@ export default async function main(req: Request): Promise<EnconvoResponse> {
   });
 
   let workdir = await getProjectEnv()
-  console.log("workdir", workdir, options.agentRealCommandName, mcpOptions.filename)
-  if (!workdir.endsWith(options.agentRealCommandName)) {
-    workdir = path.join(workdir, options.agentRealCommandName)
-  }
-
 
   const content: ChatMessageContent[] = (toolResult.content as any[])?.map((item: any) => {
     switch (item.type) {
@@ -311,7 +306,7 @@ async function createNewClient(
       }
     }
 
-    oauthProvider = await OAuthFlowManager.createOCredentialsProvider(extensionName);
+    oauthProvider = await OAuthFlowManager.createOAuthProvider(extensionName);
 
     transport = new StreamableHTTPClientTransport(new URL(result2), {
       requestInit: {
@@ -354,7 +349,7 @@ async function createNewClient(
     }
     console.log("oauthProvider", extensionName, envs);
 
-    oauthProvider = await OAuthFlowManager.createOCredentialsProvider(extensionName);
+    oauthProvider = await OAuthFlowManager.createOAuthProvider(extensionName);
 
     transport = new SSEClientTransport(new URL(result2), {
       requestInit: {

@@ -12,8 +12,8 @@ importers:
         specifier: link:../../enconvo.nodejs/enconvo_api
         version: link:../../enconvo.nodejs/enconvo_api
       '@enconvo/mcp':
-        specifier: link:/Users/ysnows/Documents/Project/packages/@enconvo:mcp
-        version: link:../../../Project/packages/@enconvo:mcp
+        specifier: link:../../packages/@enconvo:mcp
+        version: link:../../packages/@enconvo:mcp
       '@modelcontextprotocol/sdk':
         specifier: ^1.27.1
         version: 1.27.1(zod@4.3.6)

@@ -1,7 +1,7 @@
 {
   "$schema": "https://enconvo.com/schemas/extension.json",
   "name": "mcp",
-  "version": "0.0.227",
+  "version": "0.0.264",
   "description": "Model Context Protocol (MCP) client with connection pooling, supporting stdio, HTTP, and SSE transports with OAuth authentication for executing MCP server tools.",
   "title": "MCP(Model Context Protocol)",
   "icon": "icon.png",
@@ -94,7 +94,7 @@
   ],
   "dependencies": {
     "@enconvo/api": "link:../../enconvo.nodejs/enconvo_api",
-    "@enconvo/mcp": "link:/Users/ysnows/Documents/Project/packages/@enconvo:mcp",
+    "@enconvo/mcp": "link:../../packages/@enconvo:mcp",
     "@modelcontextprotocol/sdk": "^1.27.1"
   },
   "devDependencies": {

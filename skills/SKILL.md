@@ -4,7 +4,7 @@ description: >
   Model Context Protocol (MCP) client with connection pooling, supporting stdio, HTTP, and SSE transports with OAuth authentication for executing MCP server tools.
 metadata:
   author: Enconvo
-  version: "0.0.227"
+  version: "0.0.264"
 ---
 
 ## API Reference
